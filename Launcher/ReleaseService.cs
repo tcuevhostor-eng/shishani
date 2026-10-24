@@ -197,68 +197,75 @@ internal static class ReleaseService
 
     private static void ExtractRarSafely(string archivePath, string destination, IProgress<InstallStatus> progress)
     {
-        // Extract sequentially: RAR5 archives can use solid compression,
-        // so independent per-file random seeks are not always possible.
         const long maxExpandedBytes = 10L * 1024 * 1024 * 1024;
         const int maxEntries = 30000;
         string prefix = Path.GetFullPath(destination).TrimEnd(Path.DirectorySeparatorChar)
                         + Path.DirectorySeparatorChar;
         long expanded = 0;
         int count = 0;
-        try
-        {
-            using var rar = RarArchive.OpenArchive(archivePath, ReaderOptions.ForFilePath);
-            using var reader = rar.ExtractAllEntries();
-            byte[] buffer = new byte[131072];
+        byte[] buffer = new byte[131072];
 
+        void Extract(string? name, bool isDirectory, long expectedSize, Func<Stream> streamFactory)
+        {
+            if (++count > maxEntries)
+                throw new Exception("В архиве слишком много файлов.");
+            string key = (name ?? "").Replace('\\', '/');
+            if (string.IsNullOrWhiteSpace(key) || key.StartsWith('/')
+                || key.Contains(':') || key.Split('/').Any(p => p == "." || p == ".."))
+                throw new Exception("Недопустимый путь файла в архиве: " + key);
+
+            string output = Path.GetFullPath(Path.Combine(
+                destination, key.Replace('/', Path.DirectorySeparatorChar)));
+            if (!output.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Путь файла выходит за папку установки.");
+            if (isDirectory)
+            {
+                Directory.CreateDirectory(output);
+                return;
+            }
+            if (expectedSize < 0 || expectedSize > maxExpandedBytes - expanded)
+                throw new Exception("Размер архива после распаковки превышает 10 ГБ.");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+            using var source = streamFactory();
+            using var dest = new FileStream(output, FileMode.CreateNew, FileAccess.Write,
+                                            FileShare.None, buffer.Length);
+            long bytes = 0;
+            int n;
+            while ((n = source.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                expanded += n;
+                bytes += n;
+                if (expanded > maxExpandedBytes || bytes > expectedSize)
+                    throw new Exception("Превышен заявленный размер файла: " + key);
+                dest.Write(buffer, 0, n);
+            }
+            if (bytes != expectedSize)
+                throw new Exception("Файл распакован не полностью: " + key);
+            if ((count % 20) == 0)
+                progress.Report(new(82, "Распаковка файлов: " + count));
+        }
+
+        using var rar = RarArchive.OpenArchive(archivePath, ReaderOptions.ForFilePath);
+        if (rar.IsSolid)
+        {
+            using var reader = rar.ExtractAllEntries();
             while (reader.MoveToNextEntry())
             {
-                if (++count > maxEntries)
-                    throw new Exception("Архив содержит слишком много файлов.");
-                var entry = reader.Entry;
-                string key = (entry.Key ?? "").Replace('\\', '/');
-                if (string.IsNullOrWhiteSpace(key) || key.StartsWith('/') || key.Contains(':')
-                    || key.Split('/').Any(p => p == "." || p == ".."))
-                    throw new Exception("В архиве обнаружен небезопасный путь: " + key);
-                string output = Path.GetFullPath(
-                    Path.Combine(destination, key.Replace('/', Path.DirectorySeparatorChar)));
-                if (!output.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    throw new Exception("Файл архива пытается выйти за пределы папки установки.");
-
-                if (entry.IsDirectory)
-                {
-                    Directory.CreateDirectory(output);
-                    continue;
-                }
-
-                if (entry.Size < 0 || entry.Size > maxExpandedBytes - expanded)
-                    throw new Exception("Распакованный архив превышает лимит 10 ГБ.");
-                Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-                using var src = reader.OpenEntryStream();
-                using var dst = new FileStream(output, FileMode.CreateNew, FileAccess.Write,
-                                               FileShare.None, buffer.Length);
-                int n;
-                long entryBytes = 0;
-                while ((n = src.Read(buffer)) > 0)
-                {
-                    expanded += n;
-                    entryBytes += n;
-                    if (expanded > maxExpandedBytes)
-                        throw new Exception("Распакованный архив превышает лимит 10 ГБ.");
-                    dst.Write(buffer, 0, n);
-                }
-                if (entry.Size != entryBytes)
-                    throw new Exception("Размер извлечённого файла не совпадает: " + key);
-                if (count % 20 == 0)
-                    progress.Report(new(81, "Распаковка RAR5: " + count + " файлов..."));
+                var item = reader.Entry;
+                Extract(item.Key, item.IsDirectory, item.Size, () => reader.OpenEntryStream());
             }
-            if (count == 0) throw new Exception("Архив пустой.");
-            progress.Report(new(85, "Распаковка RAR5 завершена."));
         }
-        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
+        else
         {
-            throw new Exception("Не удалось распаковать RAR5. Проверь, не защищён ли архив паролем и не состоит ли он из нескольких частей.", ex);
+            // ExtractAllEntries deliberately throws on NON-solid RAR archives.
+            // For those, use the per-entry random-access API.
+            foreach (var item in rar.Entries)
+                Extract(item.Key, item.IsDirectory, item.Size, () => item.OpenEntryStream());
         }
+        if (count == 0)
+            throw new Exception("Архив игры пуст.");
+        progress.Report(new(85, "Распаковка завершена."));
     }
 
     private static void ExtractSafely(string archive, string destination, IProgress<InstallStatus> progress)
