@@ -13,7 +13,7 @@ internal sealed class LauncherView : Form
 {
     private static readonly Color Base = Color.FromArgb(247, 248, 251);
     private static readonly Color White = Color.White;
-    private static readonly Color Text = Color.FromArgb(28, 34, 45);
+    private static readonly Color Ink = Color.FromArgb(28, 34, 45);
     private static readonly Color Soft = Color.FromArgb(116, 126, 143);
     private static readonly Color Hairline = Color.FromArgb(229, 233, 240);
     private static readonly Color Green = Color.FromArgb(33, 174, 102);
@@ -60,7 +60,7 @@ internal sealed class LauncherView : Form
         };
 
         var mark = new RoundedPanel { Location = new Point(31, 18), Size = new Size(44, 44),
-            Fill = Text, Curve = 14 };
+            Fill = Ink, Curve = 14 };
         top.Controls.Add(mark);
         AddLabel(mark, "Ш", 1, 0, 42, 43, 24, true, White, ContentAlignment.MiddleCenter);
         var name = AddLabel(top, "ШиШаНи", 87, 19, 208, 37, 20, true);
@@ -72,7 +72,7 @@ internal sealed class LauncherView : Form
             Location = new Point(922, 17), Size = new Size(50, 46),
             Fill = White, Line = Hairline, Curve = 14,
             Text = "\uE713", Font = new Font("Segoe MDL2 Assets", 16),
-            ForeColor = Text
+            ForeColor = Ink
         };
         gear.Click += (_, _) => OpenSettings();
         gear.AccessibleName = "Настройки пути игры";
@@ -89,7 +89,7 @@ internal sealed class LauncherView : Form
         {
             Location = new Point(1031, 17), Size = new Size(45, 46),
             Fill = White, Curve = 14, Text = "×",
-            Font = new Font("Segoe UI", 22), ForeColor = Text
+            Font = new Font("Segoe UI", 22), ForeColor = Ink
         };
         close.Click += (_, _) => Close();
         top.Controls.Add(close);
@@ -97,8 +97,8 @@ internal sealed class LauncherView : Form
         var hero = new CityHero { Location = new Point(27, 98), Size = new Size(1046, 290) };
         Controls.Add(hero);
         AddLabel(hero, "SHISHANI ROLEPLAY", 38, 32, 426, 27, 10, true, Soft);
-        AddLabel(hero, "Твой город.", 35, 73, 610, 71, 42, true, Text);
-        AddLabel(hero, "Твоя история.", 35, 132, 630, 72, 42, true, Text);
+        AddLabel(hero, "Твой город.", 35, 73, 610, 71, 42, true, Ink);
+        AddLabel(hero, "Твоя история.", 35, 132, 630, 72, 42, true, Ink);
         AddLabel(hero, "Играй. Общайся. Создавай свою историю.", 39, 221, 570, 30, 12, false, Soft);
 
         var nickCard = new RoundedPanel
@@ -118,7 +118,7 @@ internal sealed class LauncherView : Form
         {
             Text = state.Nick, BorderStyle = BorderStyle.None,
             Location = new Point(17, 14), Size = new Size(575, 27),
-            Font = new Font("Segoe UI", 12), ForeColor = Text,
+            Font = new Font("Segoe UI", 12), ForeColor = Ink,
             BackColor = Color.FromArgb(249, 250, 252), MaxLength = 24
         };
         inputPanel.Controls.Add(nickname);
@@ -137,8 +137,8 @@ internal sealed class LauncherView : Form
         Controls.Add(serverCard);
         AddLabel(serverCard, "●", 22, 14, 19, 24, 11, true, Green);
         AddLabel(serverCard, "СЕРВЕР 1", 43, 14, 284, 24, 9, true, Soft);
-        AddLabel(serverCard, "Игроков онлайн", 22, 62, 210, 34, 13, true, Text);
-        onlineValue = AddLabel(serverCard, "—", 239, 56, 114, 44, 19, true, Text,
+        AddLabel(serverCard, "Игроков онлайн", 22, 62, 210, 34, 13, true, Ink);
+        onlineValue = AddLabel(serverCard, "—", 239, 56, 114, 44, 19, true, Ink,
             ContentAlignment.MiddleRight);
 
         var footer = new RoundedPanel
@@ -161,7 +161,7 @@ internal sealed class LauncherView : Form
         {
             Location = new Point(633, 15), Size = new Size(118, 54),
             Text = "↻", Font = new Font("Segoe UI", 20),
-            Fill = Color.FromArgb(242, 244, 247), ForeColor = Text,
+            Fill = Color.FromArgb(242, 244, 247), ForeColor = Ink,
             Curve = 15
         };
         refresh.AccessibleName = "Проверить обновления";
@@ -172,7 +172,7 @@ internal sealed class LauncherView : Form
         {
             Location = new Point(764, 15), Size = new Size(256, 54),
             Text = "УСТАНОВИТЬ", Font = new Font("Segoe UI Semibold", 13, FontStyle.Bold),
-            Fill = Text, ForeColor = White, Curve = 15
+            Fill = Ink, ForeColor = White, Curve = 15
         };
         primary.Click += async (_, _) => await PrimaryAsync();
         footer.Controls.Add(primary);
@@ -209,7 +209,7 @@ internal sealed class LauncherView : Form
             Text = title, BackColor = Color.Transparent,
             Location = new Point(x, y), Size = new Size(w, h),
             Font = new Font("Segoe UI", fontSize, bold ? FontStyle.Bold : FontStyle.Regular),
-            ForeColor = fore ?? Text, TextAlign = align, AutoEllipsis = true
+            ForeColor = fore ?? Ink, TextAlign = align, AutoEllipsis = true
         };
         parent.Controls.Add(l);
         return l;
@@ -447,7 +447,7 @@ internal sealed class LauncherView : Form
         var apply = new FlatButton
         {
             Text = "СОХРАНИТЬ", Location = new Point(410, 162),
-            Size = new Size(156, 43), Fill = Text, ForeColor = White, Curve = 12,
+            Size = new Size(156, 43), Fill = Ink, ForeColor = White, Curve = 12,
             Font = new Font("Segoe UI", 10, FontStyle.Bold)
         };
         dialog.Controls.Add(apply);
