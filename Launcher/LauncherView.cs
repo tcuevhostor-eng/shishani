@@ -333,6 +333,7 @@ internal sealed class LauncherView : Form
     {
         if (installing) return;
         installing = true;
+        bool succeeded = false;
         primary.Enabled = false;
         refresh.Enabled = false;
         bar.Visible = true;
@@ -359,6 +360,7 @@ internal sealed class LauncherView : Form
             state.InstalledVersion = latest.Version;
             state.InstalledPath = path;
             SaveState();
+            succeeded = true;
             statusText.Text = "Установка завершена";
         }
         catch (Exception ex)
@@ -381,7 +383,8 @@ internal sealed class LauncherView : Form
             primary.Enabled = true;
             refresh.Enabled = true;
             bar.Visible = false;
-            UpdateView();
+            if (succeeded) UpdateView();
+            else primary.Text = HasGame() ? "ПОВТОРИТЬ  →" : "УСТАНОВИТЬ  →";
         }
     }
 
