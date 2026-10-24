@@ -15,7 +15,7 @@ internal static class Program
         try
         {
             if (Bootstrap.InstallIfNeeded()) return;
-            Application.Run(new LauncherWindow());
+            Application.Run(new LauncherView());
         }
         catch (Exception ex)
         {
