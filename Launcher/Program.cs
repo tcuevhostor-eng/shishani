@@ -69,14 +69,14 @@ internal sealed class LauncherWindow : Form
     private static readonly Color Ink = Color.FromArgb(29, 34, 43);
     private static readonly Color Muted = Color.FromArgb(111, 120, 132);
     private static readonly Color Border = Color.FromArgb(226, 230, 235);
-    private readonly Label online = new();
-    private readonly Label status = new();
-    private readonly Label version = new();
-    private readonly ProgressBar progress = new();
-    private readonly TextBox nick = new();
-    private readonly TextBox gamePath = new();
-    private readonly Button play = new();
-    private readonly Button check = new();
+    private Label online = new();
+    private Label status = new();
+    private Label version = new();
+    private ProgressBar progress = new();
+    private TextBox nick = new();
+    private TextBox gamePath = new();
+    private Button play = new();
+    private Button check = new();
     private readonly System.Windows.Forms.Timer onlineTimer = new() { Interval = 30000 };
     private PlayerState state;
     private ReleaseInfo? latest;
@@ -259,6 +259,8 @@ internal sealed class LauncherWindow : Form
 
     private bool Current(ReleaseInfo rel) =>
         rel.Version == state.InstalledVersion
+        && !string.IsNullOrWhiteSpace(state.InstalledPath)
+        && !string.IsNullOrWhiteSpace(gamePath.Text)
         && Path.GetFullPath(gamePath.Text.Trim()).Equals(Path.GetFullPath(state.InstalledPath), StringComparison.OrdinalIgnoreCase)
         && File.Exists(Path.Combine(gamePath.Text.Trim(), "gta_sa.exe"))
         && File.Exists(Path.Combine(gamePath.Text.Trim(), "samp.exe"));
