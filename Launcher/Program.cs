@@ -366,7 +366,7 @@ internal sealed class LauncherWindow : Form
         {
             using var client = new UdpClient();
             client.Client.ReceiveTimeout = 1200;
-            await client.ConnectAsync("185.207.214.14", 2909);
+            client.Connect("185.207.214.14", 2909);
             var p = new List<byte> { 83, 65, 77, 80 };
             p.AddRange(new byte[] { 185, 207, 214, 14, (byte)(2909 & 255), (byte)(2909 >> 8), 105 });
             await client.SendAsync(p.ToArray(), p.Count);
