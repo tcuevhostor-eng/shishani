@@ -20,6 +20,13 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - name: Generate branded desktop icon
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python Launcher/make_icon.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build single Windows EXE
         shell: pwsh
         run: |
