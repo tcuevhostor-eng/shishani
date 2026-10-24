@@ -1,0 +1,41 @@
+name: Build SHISHANI RP Launcher
+
+on:
+  push:
+    paths:
+      - "Launcher/**"
+      - ".github/workflows/build-shishani.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build single Windows EXE
+        shell: pwsh
+        run: |
+          dotnet publish Launcher/SHISHANI.Launcher.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -p:DebugSymbols=false -p:PublishTrimmed=false --output publish
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path 'publish/SHISHANI_RP_Setup.exe')) { throw "Expected EXE missing" }
+          Get-Item publish/SHISHANI_RP_Setup.exe | Select-Object Name,Length
+      - name: Upload EXE as build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHISHANI_RP_Setup_Windows
+          path: publish/SHISHANI_RP_Setup.exe
+          if-no-files-found: error
+      - name: Publish EXE next to client.zip in v1.0
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload v1.0 publish/SHISHANI_RP_Setup.exe --clobber
