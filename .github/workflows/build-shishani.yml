@@ -7,6 +7,10 @@ on:
       - ".github/workflows/build-shishani.yml"
   workflow_dispatch:
 
+concurrency:
+  group: shishani-launcher-release
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
