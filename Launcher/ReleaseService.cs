@@ -2,6 +2,9 @@ using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
+using SharpCompress.Archives.Rar;
+using SharpCompress.Common;
+using SharpCompress.Readers;
 
 namespace ShishaniRP;
 
@@ -101,7 +104,21 @@ internal static class ReleaseService
                 throw new Exception("Контрольная сумма архива не совпадает. Файлы не установлены.");
 
             progress.Report(new(78, "Распаковка сборки..."));
-            await Task.Run(() => ExtractSafely(zipFile, stage, progress));
+            await Task.Run(() =>
+            {
+                byte[] signature = new byte[8];
+                using (var signatureStream = File.OpenRead(zipFile))
+                    signatureStream.ReadExactly(signature);
+                // The first uploaded client.zip is RAR5 despite its .zip extension.
+                // Detect the actual format by magic bytes, never by filename.
+                if (signature[0] == 0x52 && signature[1] == 0x61
+                    && signature[2] == 0x72 && signature[3] == 0x21)
+                    ExtractRarSafely(zipFile, stage, progress);
+                else if (signature[0] == 0x50 && signature[1] == 0x4B)
+                    ExtractSafely(zipFile, stage, progress);
+                else
+                    throw new Exception("Неподдерживаемый формат сборки. Используй ZIP или RAR5.");
+            });
 
             string sourceRoot = ResolveRoot(stage);
             string[] files = Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories);
@@ -176,6 +193,72 @@ internal static class ReleaseService
             path = dirs[0];
         }
         return path;
+    }
+
+    private static void ExtractRarSafely(string archivePath, string destination, IProgress<InstallStatus> progress)
+    {
+        // Extract sequentially: RAR5 archives can use solid compression,
+        // so independent per-file random seeks are not always possible.
+        const long maxExpandedBytes = 10L * 1024 * 1024 * 1024;
+        const int maxEntries = 30000;
+        string prefix = Path.GetFullPath(destination).TrimEnd(Path.DirectorySeparatorChar)
+                        + Path.DirectorySeparatorChar;
+        long expanded = 0;
+        int count = 0;
+        try
+        {
+            using var rar = RarArchive.OpenArchive(archivePath, ReaderOptions.ForFilePath);
+            using var reader = rar.ExtractAllEntries();
+            byte[] buffer = new byte[131072];
+
+            while (reader.MoveToNextEntry())
+            {
+                if (++count > maxEntries)
+                    throw new Exception("Архив содержит слишком много файлов.");
+                var entry = reader.Entry;
+                string key = (entry.Key ?? "").Replace('\\', '/');
+                if (string.IsNullOrWhiteSpace(key) || key.StartsWith('/') || key.Contains(':')
+                    || key.Split('/').Any(p => p == "." || p == ".."))
+                    throw new Exception("В архиве обнаружен небезопасный путь: " + key);
+                string output = Path.GetFullPath(
+                    Path.Combine(destination, key.Replace('/', Path.DirectorySeparatorChar)));
+                if (!output.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    throw new Exception("Файл архива пытается выйти за пределы папки установки.");
+
+                if (entry.IsDirectory)
+                {
+                    Directory.CreateDirectory(output);
+                    continue;
+                }
+
+                if (entry.Size < 0 || entry.Size > maxExpandedBytes - expanded)
+                    throw new Exception("Распакованный архив превышает лимит 10 ГБ.");
+                Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+                using var src = reader.OpenEntryStream();
+                using var dst = new FileStream(output, FileMode.CreateNew, FileAccess.Write,
+                                               FileShare.None, buffer.Length);
+                int n;
+                long entryBytes = 0;
+                while ((n = src.Read(buffer)) > 0)
+                {
+                    expanded += n;
+                    entryBytes += n;
+                    if (expanded > maxExpandedBytes)
+                        throw new Exception("Распакованный архив превышает лимит 10 ГБ.");
+                    dst.Write(buffer, 0, n);
+                }
+                if (entry.Size != entryBytes)
+                    throw new Exception("Размер извлечённого файла не совпадает: " + key);
+                if (count % 20 == 0)
+                    progress.Report(new(81, "Распаковка RAR5: " + count + " файлов..."));
+            }
+            if (count == 0) throw new Exception("Архив пустой.");
+            progress.Report(new(85, "Распаковка RAR5 завершена."));
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException)
+        {
+            throw new Exception("Не удалось распаковать RAR5. Проверь, не защищён ли архив паролем и не состоит ли он из нескольких частей.", ex);
+        }
     }
 
     private static void ExtractSafely(string archive, string destination, IProgress<InstallStatus> progress)
