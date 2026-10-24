@@ -1,0 +1,74 @@
+name: Test SHISHANI client archive
+
+on:
+  push:
+    paths:
+      - ".github/workflows/test-client-archive.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rar5-check:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Set up dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Download released client
+        shell: pwsh
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest "https://github.com/tcuevhostor-eng/shishani/releases/download/v1.0/client.zip" -OutFile "client.zip"
+          Write-Output "Archive bytes: $((Get-Item client.zip).Length)"
+          if ((Get-Item client.zip).Length -ne 702125177) { throw 'Unexpected archive size' }
+      - name: Verify real archive is readable by SharpCompress
+        shell: pwsh
+        run: |
+          dotnet new console -o probe -f net8.0
+          dotnet add probe package SharpCompress --version 0.50.7
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          @'
+          using System;
+          using System.IO;
+          using SharpCompress.Archives.Rar;
+          using SharpCompress.Readers;
+
+          string path = Path.GetFullPath("client.zip");
+          using var rar = RarArchive.OpenArchive(path, ReaderOptions.ForFilePath);
+          Console.WriteLine("Solid: " + rar.IsSolid);
+          int count = 0;
+          long bytes = 0;
+          if (rar.IsSolid)
+          {
+              using var r = rar.ExtractAllEntries();
+              while (r.MoveToNextEntry())
+              {
+                  if (r.Entry.IsDirectory) continue;
+                  using var s = r.OpenEntryStream();
+                  s.CopyTo(Stream.Null);
+                  bytes += r.Entry.Size;
+                  count++;
+                  if (count % 100 == 0) Console.WriteLine($"Read {count} files ({bytes} bytes)");
+              }
+          }
+          else
+          {
+              foreach (var e in rar.Entries)
+              {
+                  if (e.IsDirectory) continue;
+                  using var s = e.OpenEntryStream();
+                  s.CopyTo(Stream.Null);
+                  bytes += e.Size;
+                  count++;
+                  if (count % 100 == 0) Console.WriteLine($"Read {count} files ({bytes} bytes)");
+              }
+          }
+          if (count < 1) throw new Exception("No files in archive");
+          Console.WriteLine($"SUCCESS: fully decoded {count} files, {bytes} extracted bytes.");
+          '@ | Set-Content probe/Program.cs -Encoding UTF8
+          dotnet run --project probe --configuration Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
