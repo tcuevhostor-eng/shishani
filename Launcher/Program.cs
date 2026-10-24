@@ -301,7 +301,7 @@ internal sealed class LauncherWindow : Form
         check.Click += async (_,_) => await InstallAsync(false, true);
         play = ActionButton(installationPanel,"УСТАНОВИТЬ  →", 850, 27, 232, 59, ink2, Color.White, 15);
         play.Font = new Font("Segoe UI Semibold", 13, FontStyle.Bold);
-        play.Click += async (_,_) => await InstallAsync(true, false);
+        play.Click += async (_,_) => await InstallAsync(latest != null && Current(latest), false);
 
         Shown += (_,_) => {
             BringToFront();
