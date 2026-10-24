@@ -9,5 +9,6 @@
     <RootNamespace>ShishaniRP</RootNamespace>
     <Version>1.0.0</Version>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>shishani.ico</ApplicationIcon>
   </PropertyGroup>
 </Project>
